@@ -1,46 +1,81 @@
 var express = require("express");
-var path = require("path");
 var bodyParser = require("body-parser");
-
-var index = require("./routes/index");
-var bookings = require("./routes/bookings");
-var driverLocation = require("./routes/driverLocation");
-var drivers = require("./routes/drivers");
+var mongoose = require("mongoose");
+var Schema = mongoose.Schema;
 
 var app = express();
 var cors = require('cors');
 
 var port = 3002;
 
-var socket_io = require("socket.io");
-
-var io = socket_io();
-
-
-//views
-
-app.set("views",  path.join(__dirname, "views"));
-app.set("view engine", "ejs");
-app.engine("html", require("ejs").renderFile);
-
-//Body parser MW
-
 app.use(bodyParser.json()); // to support JSON-encoded bodies
 app.use(bodyParser.urlencoded({extended:true}));
 app.use(cors());
 
+mongoose.connect(
+	"mongodb+srv://vadym:vadym@cluster0-4uqci.mongodb.net/common?retryWrites=true&w=majority",
+	{ useNewUrlParser: true }
+);
+var MyModel = mongoose.model("cars", new Schema({}));
 
-//Routes
 
-app.use("/", index);
-app.use("/api", bookings);
-app.use("/api", driverLocation);
-app.use("/api", drivers);
+app.get("/todos", async function(req, res, next){
+	MyModel.findById('5d2892911c9d44000053254a', function(error, result) {
+		res.json(result);
+	});
+});
 
-io.listen(app.listen(port, function(){
+app.post("/todos", async function(req, res, next) {
+	var upd = req.body.data;
+
+	if (!upd) {
+		res.status(400);
+		res.json({
+			error: "Bad data"
+		});
+	} else {
+		await MyModel.updateOne(upd);
+		// res.status(204);
+		MyModel.findById('5d0e2799776b997b56428fd4', function(error, result) {
+			res.json(result);
+		});
+	}
+});
+
+// Driver  Update Booking done on driver side
+app.put("/todos/:id", function(req, res, next){
+	var io = req.app.io;
+	var booking = req.body;
+	if (!booking.status){
+		res.status(400);
+		res.json({
+			"error":"Bad Data"
+		});
+	} else {
+		db.bookings.update({_id: mongojs.ObjectId(req.params.id)},{ $set: {
+				driverId: booking.driverId,
+				status: booking.status
+			}}, function(err, updatedBooking){
+			if (err){
+				res.send(err);
+			}
+			if (updatedBooking){
+				//Get Confirmed booking
+				db.bookings.findOne({_id:  mongojs.ObjectId(req.params.id)},function(error, confirmedBooking){
+					if (error){
+						res.send(error);
+					}
+					res.send(confirmedBooking);
+					io.emit("action", {
+						type:"BOOKING_CONFIRMED",
+						payload:confirmedBooking
+					});
+				});
+			}
+		});
+	}
+});
+
+app.listen(port, function(){
 	console.log("Server running on port", port);
-}));
-
-app.io = io.on("connection", function(socket){
-	console.log("Socket connected: " + socket.id);
 });
