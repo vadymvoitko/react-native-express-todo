@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, Button } from 'react-native';
 import axios from 'axios';
 // allow network debug in chrome
-GLOBAL.XMLHttpRequest = GLOBAL.originalXMLHttpRequest || GLOBAL.XMLHttpRequest;
+// GLOBAL.XMLHttpRequest = GLOBAL.originalXMLHttpRequest || GLOBAL.XMLHttpRequest;
 
 export default class App extends React.Component {
   state = {
@@ -19,53 +19,49 @@ export default class App extends React.Component {
   };
   pop = async () => {
     try {
-      const res = await axios.get("http://localhost:3002/todos");
-      this.setState({
-        todos: res.data.todoArr
-      });
-      console.log(res.data.todoArr);
-      console.log(this.state.todos);
+      const res = await axios.get("http://localhost:3000/todos");
+      res && res.data && res.data.forEach((el) => {
+        this.setState((state) => {
+          return {
+            todos: {
+              ...state.todos,
+              [el._id]: el
+            }
+          };
+        });
+      })
     } catch (err) {
       console.log(err);
     }
   };
-  sendIt = async () => {
-    try {
-      const res = await axios.post("http://localhost:3002/api/bookings", {
-        data: { mers: +this.state.count + 1 }
-      });
-      this.setState((state) => {
-        console.log(res);
-        return {
-          res: res && res.data.mers,
-          count: +state.count + 1
-        }
-      });
-      // console.log(this.state.count)
-    } catch (err) {
-      console.log(err)
-    }
-  }
-  deleteTodo (el) {
-    console.log(el)
+  async deleteTodo (key) {
+    console.log(this.state.todos)
+    const res = await axios.delete(`http://localhost:3000/todos/${key}`);
+    this.setState((state) => {
+      const newState = {...state.todos};
+      delete newState[res.data];
+      console.log(res);
+      return {
+        todos: newState
+      };
+    })
   }
   async addTodo(el) {
-    const res = await axios.post("http://localhost:3002/api/bookings", {
+    const res = await axios.post("http://localhost:3000/todos", {
       data: {
-        'id3': {
-          name: 'todo3',
-          description: 'desc3',
-          status: 'planned',
-          id: 'id3'
-        }
+        name: "todo3",
+        description: "desc3",
+        status: "planned"
       }
     });
+    console.log(res);
     this.setState({
       todos: {
         ...this.state.todos,
-        ...res.data,
+        [res.data._id]: res.data,
       }
     })
+    console.log(this.state)
   }
   componentDidMount() {
     this.pop();

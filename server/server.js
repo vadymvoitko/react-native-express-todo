@@ -6,7 +6,7 @@ var Schema = mongoose.Schema;
 var app = express();
 var cors = require('cors');
 
-var port = 3002;
+var port = 3000;
 
 app.use(bodyParser.json()); // to support JSON-encoded bodies
 app.use(bodyParser.urlencoded({extended:true}));
@@ -16,33 +16,44 @@ mongoose.connect(
 	"mongodb+srv://vadym:vadym@cluster0-4uqci.mongodb.net/common?retryWrites=true&w=majority",
 	{ useNewUrlParser: true }
 );
-var MyModel = mongoose.model("cars", new Schema({}));
+var todoSchema = new Schema({
+  name: String,
+  description: String,
+  status: String
+});
+var MyModel = mongoose.model("cars", todoSchema);
 
 
 app.get("/todos", async function(req, res, next){
-	MyModel.findById('5d2892911c9d44000053254a', function(error, result) {
+	MyModel.find((error, result) => {
 		res.json(result);
 	});
 });
 
 app.post("/todos", async function(req, res, next) {
 	var upd = req.body.data;
-
 	if (!upd) {
 		res.status(400);
 		res.json({
 			error: "Bad data"
 		});
 	} else {
-		await MyModel.updateOne(upd);
-		// res.status(204);
-		MyModel.findById('5d0e2799776b997b56428fd4', function(error, result) {
-			res.json(result);
-		});
+    var newTodo = new MyModel(upd);
+    newTodo.save((err, todo) => {
+      if (!err) res.send(todo).status(204);
+    });
 	}
 });
 
-// Driver  Update Booking done on driver side
+app.delete("/todos/:id", (req, res) => {
+  // console.log(req.params.id);
+  MyModel.deleteOne({
+    _id: req.params.id
+  }, (err, resp) => {
+    if (err) console.log(err);
+    else if (resp.ok) res.send(req.params.id).status(201);
+  })
+})
 app.put("/todos/:id", function(req, res, next){
 	var io = req.app.io;
 	var booking = req.body;
