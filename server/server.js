@@ -31,6 +31,7 @@ app.get("/todos", async function(req, res, next){
 });
 
 app.post("/todos", async function(req, res, next) {
+	console.log('asfda')
 	var upd = req.body.data;
 	if (!upd) {
 		res.status(400);
@@ -38,10 +39,10 @@ app.post("/todos", async function(req, res, next) {
 			error: "Bad data"
 		});
 	} else {
-    var newTodo = new MyModel(upd);
-    newTodo.save((err, todo) => {
-      if (!err) res.send(todo).status(204);
-    });
+        var newTodo = new MyModel(upd);
+        newTodo.save((err, todo) => {
+          if (!err) res.send(todo).status(204);
+        });
 	}
 });
 
@@ -54,34 +55,28 @@ app.delete("/todos/:id", (req, res) => {
     else if (resp.ok) res.send(req.params.id).status(201);
   })
 })
-app.put("/todos/:id", function(req, res, next){
-	var io = req.app.io;
-	var booking = req.body;
-	if (!booking.status){
+app.put("/todos/:id", function(req, res){
+    console.log(req.body.data);
+    const { description } = req.body.data;
+	if (!description){
 		res.status(400);
 		res.json({
 			"error":"Bad Data"
 		});
 	} else {
-		db.bookings.update({_id: mongojs.ObjectId(req.params.id)},{ $set: {
-				driverId: booking.driverId,
-				status: booking.status
-			}}, function(err, updatedBooking){
+        MyModel.updateOne({ _id: req.params.id }, { $set: { description } }, function(err, updatedTodo){
 			if (err){
-				res.send(err);
+				res.send(err).status(400);
 			}
-			if (updatedBooking){
-				//Get Confirmed booking
-				db.bookings.findOne({_id:  mongojs.ObjectId(req.params.id)},function(error, confirmedBooking){
-					if (error){
-						res.send(error);
-					}
-					res.send(confirmedBooking);
-					io.emit("action", {
-						type:"BOOKING_CONFIRMED",
-						payload:confirmedBooking
-					});
-				});
+			if (updatedTodo){
+                MyModel.findOne({
+                    _id: req.params.id
+                }, (err, todo) => {
+                    if (err){
+                        res.send(err).status(400);
+                    }
+                    res.json(todo).status(204);
+                })
 			}
 		});
 	}
